@@ -1,10 +1,12 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Query, UploadFile
 from typing import List
 
 from app.models import Document
 from app.dependencies import create_s3_client, create_opensearch_client
 from app.utils import S3Util, OpenSearchUtil
 from config import settings
+
+from io import BytesIO
 
 # nlp models
 from app.nlp.scapy import spacyModel
@@ -55,12 +57,25 @@ async def get_documents():
 
 @router.post("/")
 async def upload_document(document: UploadFile = File(...)):
+    # for some reason, importing above causes an error to fastapi
+    from docx import Document
+
     # Call utility function to create the index if it doesn't exist
     esUtil.create_index_if_not_exists(INDEX)
 
-    content = document.file.read().decode('utf-8')
-    doc = spacyModel(content)
+    # Extract text from document
+    contents = await document.read()
+    file = BytesIO(contents)
+    doc = Document(file)
+    text = ''
+    for paragraph in doc.paragraphs:
+        text += paragraph.text + " "
 
+    text = text.replace('\t', ' ').replace('\n', ' ')
+    text = text.strip()
+
+    # Extract entities
+    doc = spacyModel(text)
     entities = {}
     for ent in doc.ents:
         if ent.label_ not in entities:
@@ -68,7 +83,7 @@ async def upload_document(document: UploadFile = File(...)):
         entities[ent.label_].append(ent.text)
 
     # Encode text using BERT model
-    encoded_text = textEncoder(content)
+    encoded_text = textEncoder(text)
 
     # Upload to S3
     s3_key = document.filename
@@ -76,6 +91,7 @@ async def upload_document(document: UploadFile = File(...)):
 
     # Store document and entities in Elastic Search
     esClient.index(index="documents", body={
+        "text": text,
         "encoded_text": encoded_text.tolist(),
         "filename": document.filename,
         "s3_url": s3_url
@@ -88,13 +104,22 @@ async def upload_document(document: UploadFile = File(...)):
 async def search_documents(query: str):
     # Perform keyword search
     documents = esUtil.keyword_search(INDEX, query)
-
     return documents
 
-
-@router.get("/test")
-async def test():
-    question = "What is ABC Inc."
+@router.get("/search-doc")
+async def search_doc(question: str = Query(...)):
     encoded_question = textEncoder(question)
     result = searchDocuments(esClient, encoded_question)
     return result["_source"]["text"]
+
+@router.delete("/purge/docs")
+async def delete_docs():
+    esClient.delete_by_query(
+        index="documents",
+        body={
+            "query": {
+                "match_all": {}
+            }
+        }
+    )
+    return "Deleted all documents"

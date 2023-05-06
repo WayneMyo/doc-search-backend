@@ -8,13 +8,24 @@ def textEncoder(text):
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     model = AutoModel.from_pretrained("bert-base-uncased")
 
-    # Tokenize text
-    input_ids = tokenizer.encode(text, return_tensors="pt")
+    # Split text into chunks
+    max_length = tokenizer.model_max_length
+    text_chunks = [text[i:i+max_length] for i in range(0, len(text), max_length)]
 
-    # Encode text using BERT model
-    with torch.no_grad():
-        outputs = model(input_ids)
-        encoded_text = outputs.last_hidden_state[:, 0, :].numpy()
+    # Encode each chunk separately
+    encoded_chunks = []
+    for chunk in text_chunks:
+        # Tokenize chunk
+        input_ids = tokenizer.encode(chunk, return_tensors="pt")
+
+        # Encode chunk using BERT model
+        with torch.no_grad():
+            outputs = model(input_ids)
+            encoded_chunk = outputs.last_hidden_state[:, 0, :].numpy()
+            encoded_chunks.append(encoded_chunk)
+
+    # Combine encoded vectors
+    encoded_text = np.mean(encoded_chunks, axis=0)
 
     return encoded_text
 
