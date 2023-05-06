@@ -6,6 +6,13 @@ from app.dependencies import create_s3_client, create_opensearch_client
 from app.utils import S3Util, OpenSearchUtil
 from config import settings
 
+"""
+Routes for the Doc-Search application, including:
+- get_documents: Get all documents from OpenSearch
+- upload_document: Upload a document to S3 and index it in OpenSearch
+- search_documents: Search documents in OpenSearch
+"""
+
 router = APIRouter(prefix="/v1/documents")
 
 s3_bucket_name = settings.S3_BUCKET_NAME

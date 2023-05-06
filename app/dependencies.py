@@ -3,6 +3,8 @@ from opensearchpy import OpenSearch
 
 """
 Dependencies for the FastAPI application, including:
+- S3 client
+- OpenSearch client
 """
 
 def create_s3_client():

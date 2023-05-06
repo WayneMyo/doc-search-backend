@@ -6,7 +6,7 @@ from app.routes.documents import router as documents_router
 
 """
 The main FastAPI application file, containing:
-1. documents_router: The router for the documents API endpoints.
+- documents_router: The router for the documents API endpoints.
 """
 
 setup_logging()

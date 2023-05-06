@@ -3,7 +3,8 @@ from opensearchpy import OpenSearch
 
 """
 Utility functions for the Doc-Search, including:
-
+- S3Util: upload, get, delete files from S3
+- OpenSearchUtil: create index, search documents in OpenSearch
 """
 
 class S3Util:
