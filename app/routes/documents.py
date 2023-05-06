@@ -9,7 +9,7 @@ from config import settings
 from io import BytesIO
 
 # nlp models
-from app.nlp.scapy import spacyModel
+from app.nlp.spacy import spacyModel
 from app.nlp.transformer import textEncoder, searchDocuments
 
 """
@@ -110,7 +110,7 @@ async def search_documents(query: str):
 async def search_doc(question: str = Query(...)):
     encoded_question = textEncoder(question)
     result = searchDocuments(esClient, encoded_question)
-    return result["_source"]["text"]
+    return result["_source"]["filename"]
 
 @router.delete("/purge/docs")
 async def delete_docs():
