@@ -61,6 +61,10 @@ async def get_documents():
             })
 
         search_results = esClient.scroll(scroll_id=scroll_id, scroll="1m")
+        scroll_id = search_results["_scroll_id"]
+
+    # Clear the scroll when you are done
+    esClient.clear_scroll(scroll_id=scroll_id)
 
     return documents
 
