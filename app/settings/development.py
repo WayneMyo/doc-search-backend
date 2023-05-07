@@ -11,20 +11,20 @@ class DevelopmentSettings(BaseSettings):
     
     @property
     def S3_BUCKET_NAME(self):
-        return os.getenv("S3_BUCKET_NAME")
+        return os.getenv("S3_DEV_BUCKET_NAME")
     
     @property
     def OPEN_SEARCH_HOST(self):
-        return os.getenv("OPEN_SEARCH_HOST")
+        return os.getenv("OPEN_SEARCH_DEV_HOST")
 
     @property
     def OPEN_SEARCH_USERNAME(self):
-        return os.getenv("OPEN_SEARCH_USERNAME")
+        return os.getenv("OPEN_SEARCH_DEV_USERNAME")
 
     @property
     def OPEN_SEARCH_PASSWORD(self):
-        return os.getenv("OPEN_SEARCH_PASSWORD")
+        return os.getenv("OPEN_SEARCH_DEV_PASSWORD")
     
     @property
     def OPEN_SEARCH_INDEX_NAME(self):
-        return os.getenv("OPEN_SEARCH_INDEX_NAME")
+        return os.getenv("OPEN_SEARCH_DEV_INDEX_NAME")

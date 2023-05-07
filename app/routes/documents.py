@@ -11,6 +11,7 @@ from io import BytesIO
 # nlp models
 from app.nlp.spacy import spacyModel
 from app.nlp.transformer import textEncoder, searchDocuments, getSummary
+from app.nlp.semantic_expansion import sematic_expansion
 
 """
 Routes for the Doc-Search application, including:
@@ -90,13 +91,17 @@ async def upload_document(document: UploadFile = File(...)):
     s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
 
     # Store document and entities in Elastic Search
-    esClient.index(index="documents", body={
+    body = {
         "text": text,
         "encoded_text": encoded_text.tolist(),
         "filename": document.filename,
         "s3_url": s3_url
-        **entities
-    })
+    }
+
+    for key, value in entities.items():
+        body[key] = value
+
+    esClient.index(index="documents", body=body)
 
     return "Document uploaded successfully"
 
@@ -110,8 +115,19 @@ async def search_doc(question: str = Query(...)):
     # except:
     #     q = question
 
-    # Skip query expansion, as it casues noise.
+    # Expand the question
+    expanded_question = sematic_expansion(question)
+
     result = searchDocuments(esClient, question)
+    expanded_result = searchDocuments(esClient, expanded_question)
+
+    result_filenames = [x[0]["_source"]["filename"] for x in result]
+
+    # Combine two results if result["_source"]["filename"] is not in result_filenames
+    if expanded_result:
+        for r in expanded_result:
+            if r[0]["_source"]["filename"] not in result_filenames:
+                result.append(r)
 
     if not result:
         return {
