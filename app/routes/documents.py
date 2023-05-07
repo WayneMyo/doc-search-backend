@@ -47,7 +47,7 @@ async def get_documents():
         for hit in search_results["hits"]["hits"]:
             documents.append({
                 "id": hit["_id"],
-                "name": hit["_source"]["name"],
+                "filename": hit["_source"]["name"],
                 "s3_url": hit["_source"]["s3_url"]
             })
 
