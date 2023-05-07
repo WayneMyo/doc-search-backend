@@ -86,15 +86,15 @@ async def upload_document(document: UploadFile = File(...)):
     encoded_text = textEncoder(text)
 
     # Upload to S3
-    # s3_key = document.filename
-    # s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
+    s3_key = document.filename
+    s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
 
     # Store document and entities in Elastic Search
     esClient.index(index="documents", body={
         "text": text,
         "encoded_text": encoded_text.tolist(),
         "filename": document.filename,
-        # "s3_url": s3_url
+        "s3_url": s3_url
         **entities
     })
 
