@@ -10,7 +10,7 @@ from io import BytesIO
 
 # nlp models
 from app.nlp.spacy import spacyModel
-from app.nlp.transformer import textEncoder, expandQuestion, searchDocuments
+from app.nlp.transformer import textEncoder, expandQuery, searchDocuments
 
 """
 Routes for the Doc-Search application, including:
@@ -112,13 +112,31 @@ async def search_doc(question: str = Query(...)):
 
     # IDK yet, sometimes it failed. So I just catch the error
     # and use default question if it failed to expand
-    try:
-        q = expandQuestion(question)
-    except:
-        q = question
+    # try:
+    #     q = expandQuery(question)
+    # except:
+    #     q = question
 
-    result = searchDocuments(esClient, q)
-    return result["_source"]["filename"] if result else ""
+    # Skip query expansion, as it casues noise.
+    result = searchDocuments(esClient, question)
+
+    if not result:
+        return {
+            "documents": [],
+        }
+    
+    documents = []
+    for r, distance in result:
+        documents.append({
+            "id": r["_id"],
+            "filename": r["_source"]["filename"],
+            "s3_url": r["_source"].get("s3_url", None),
+            "distance": distance
+        })
+    
+    return {
+        "documents": documents,
+    }
 
 @router.delete("/purge/docs")
 async def delete_docs():

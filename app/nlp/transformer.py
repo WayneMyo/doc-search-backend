@@ -32,7 +32,7 @@ def textEncoder(text):
     return encoded_text
 
 
-def expandQuestion(question: str) -> str:
+def expandQuery(question: str) -> str:
     # Load pre-trained BERT tokenizer and model
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
     model = BertForMaskedLM.from_pretrained('bert-base-uncased')
@@ -89,8 +89,6 @@ def searchDocuments(esClient, question):
     # Search for all documents in Elastic Search
     results = esClient.search(index="documents", body=query)
 
-    print(query)
-
     # Compute distances between encoded question and encoded documents
     distances = []
     for hit in results["hits"]["hits"]:
@@ -101,11 +99,4 @@ def searchDocuments(esClient, question):
 
     # Sort documents by distance
     distances.sort(key=lambda x: x[1])
-
-    # Print the distances
-    print("\n=============\nDistances:")
-    for d in distances:
-        print(d[0]["_source"]["filename"], d[1])
-
-    # Return the most similar document
-    return distances[0][0] if distances else None
+    return distances[:5] if distances else None
