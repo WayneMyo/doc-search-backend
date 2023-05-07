@@ -1,6 +1,6 @@
 import torch
-from transformers import AutoTokenizer, AutoModel, BertTokenizer, BertForMaskedLM
-from scipy.spatial.distance import cdist, euclidean
+from transformers import AutoTokenizer, AutoModel, BertTokenizer, BertForMaskedLM, AutoModelForSeq2SeqLM
+from scipy.spatial.distance import cdist
 import numpy as np
 
 from app.nlp.spacy import spacyModel
@@ -94,9 +94,43 @@ def searchDocuments(esClient, question):
     for hit in results["hits"]["hits"]:
         encoded_text = np.array(hit["_source"]["encoded_text"])
         distance = cdist(encoded_question, encoded_text, metric="cosine")[0][0]
-        # distance = euclidean(encoded_question, encoded_text)
         distances.append((hit, distance))
 
     # Sort documents by distance
     distances.sort(key=lambda x: x[1])
     return distances[:5] if distances else None
+
+def getSummary(doc, question):
+    # Initialize the tokenizer and the model
+    tokenizer = AutoTokenizer.from_pretrained("t5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
+
+    # Generate a prompt for the T5 model
+    prompt = "answer: "
+
+    # Get the text of the document
+    text = doc["_source"]["text"]
+
+    # Split the text into 512-token chunks
+    chunk_size = 512
+    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+
+    # Summarize each chunk separately
+    summaries = []
+    for chunk in chunks:
+        # Encode the prompt and the chunk of text
+        input_ids = tokenizer.encode(prompt + question + "context: " + chunk, return_tensors="pt")
+
+        # Generate a summary of the chunk using the T5 model
+        summary_ids = model.generate(input_ids=input_ids, max_length=100, num_beams=4, early_stopping=True)
+        summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+        # Clear the PyTorch cache
+        torch.cuda.empty_cache()
+
+        summaries.append(summary)
+
+    # Join the summaries together
+    summary = " ".join(summaries)
+
+    return summary

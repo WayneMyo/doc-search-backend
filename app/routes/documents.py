@@ -10,7 +10,7 @@ from io import BytesIO
 
 # nlp models
 from app.nlp.spacy import spacyModel
-from app.nlp.transformer import textEncoder, expandQuery, searchDocuments
+from app.nlp.transformer import textEncoder, searchDocuments, getSummary
 
 """
 Routes for the Doc-Search application, including:
@@ -86,32 +86,25 @@ async def upload_document(document: UploadFile = File(...)):
     encoded_text = textEncoder(text)
 
     # Upload to S3
-    s3_key = document.filename
-    s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
+    # s3_key = document.filename
+    # s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
 
     # Store document and entities in Elastic Search
     esClient.index(index="documents", body={
         "text": text,
         "encoded_text": encoded_text.tolist(),
         "filename": document.filename,
-        "s3_url": s3_url
+        # "s3_url": s3_url
         **entities
     })
 
     return "Document uploaded successfully"
 
-@router.get("/search", response_model=List[Document])
-async def search_documents(query: str):
-    # Perform keyword search
-    documents = esUtil.keyword_search(INDEX, query)
-    return documents
-
-@router.get("/search-doc")
+@router.get("/search")
 async def search_doc(question: str = Query(...)):
-    q = None
-
     # IDK yet, sometimes it failed. So I just catch the error
     # and use default question if it failed to expand
+    # q = None
     # try:
     #     q = expandQuery(question)
     # except:
@@ -126,16 +119,24 @@ async def search_doc(question: str = Query(...)):
         }
     
     documents = []
+    documentsToSummaries = []
+    
     for r, distance in result:
+        documentsToSummaries.append(r)
         documents.append({
             "id": r["_id"],
             "filename": r["_source"]["filename"],
             "s3_url": r["_source"].get("s3_url", None),
             "distance": distance
         })
-    
+
+
+    # Generate sumamry for user question
+    summary = getSummary(documentsToSummaries[0], question)
+
     return {
         "documents": documents,
+        "summary": summary
     }
 
 @router.delete("/purge/docs")
