@@ -1,4 +1,5 @@
-from fastapi import APIRouter, File, Query, UploadFile
+from fastapi import APIRouter, File, Query, UploadFile, Response
+from fastapi.responses import FileResponse
 from typing import List
 
 from app.models import Document
@@ -7,6 +8,7 @@ from app.utils import S3Util, OpenSearchUtil
 from config import settings
 
 from io import BytesIO
+import os
 
 # nlp models
 from app.nlp.spacy import spacyModel
@@ -35,6 +37,12 @@ esClient = create_opensearch_client(
     settings.OPEN_SEARCH_PASSWORD
 )
 esUtil = OpenSearchUtil(esClient)
+
+# Get the home directory path
+home_dir = os.path.expanduser('~')
+
+# Set the local storage path
+local_storage_path = os.path.join(home_dir, 'uploaded_files')
 
 @router.get("/", response_model=List[Document])
 async def get_documents():
@@ -86,16 +94,23 @@ async def upload_document(document: UploadFile = File(...)):
     # Encode text using BERT model
     encoded_text = textEncoder(text)
 
-    # Upload to S3
-    s3_key = document.filename
-    s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
+    # Upload to S3 -- temporarily disabled
+    # s3_key = document.filename
+    # s3_url = s3_util.upload_file(s3_bucket_name, s3_key, document.file)
+
+    # Save the file to the local server
+    os.makedirs(local_storage_path, exist_ok=True)
+    local_file_path = os.path.join(local_storage_path, document.filename)
+
+    with open(local_file_path, 'wb') as f:
+        f.write(contents)
 
     # Store document and entities in Elastic Search
     body = {
         "text": text,
         "encoded_text": encoded_text.tolist(),
         "filename": document.filename,
-        "s3_url": s3_url
+        "s3_url": 'temporarily_disabled'
     }
 
     for key, value in entities.items():
@@ -154,6 +169,16 @@ async def search_doc(question: str = Query(...)):
         "documents": documents,
         "summary": summary
     }
+
+@router.get("/download/{filename}")
+async def download_file(filename: str):
+    file_path = os.path.join(local_storage_path, filename)
+    
+    if os.path.exists(file_path):
+        return FileResponse(file_path, media_type='application/octet-stream', filename=filename)
+    else:
+        return Response(content="File not found.", status_code=404)
+
 
 @router.delete("/purge/docs")
 async def delete_docs():
